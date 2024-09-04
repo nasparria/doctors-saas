@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - kafka
+    environment:
+      - SERVER_PORT=8080
+      - DB_HOST=db
+      - DB_PORT=5432  # Internal container port for PostgreSQL
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=doctor_saas
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=doctor_saas_group
+      - EMAIL_FROM=mailtrap@demomailtrap.com
+      - EMAIL_API_TOKEN=c76e8b25f513a6d410852e0f2aac58b1  # Mailtrap API token
+
+    volumes:
+      - ./.env:/root/.env
+    command: ["./wait-for-it.sh", "db", "./main"]
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=doctor_saas
+    ports:
+      - "5431:5432"  # Expose the container's 5432 port to the host's 5431 port
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+volumes:
+  pgdata:
